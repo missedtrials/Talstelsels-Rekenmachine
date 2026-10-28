@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talstelsels – leren, visualiseren, berekenen</title>
+<style>
+:root{
+  --bg:#F7F6F2;
+  --accent:#A88C8C;
+  --line:#D1C4C4;
+  --on:#E5D9D9;
+  --ink:#2b2222;
+  --soft:#6d5f5f;
+  --err:#b3261e;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);background-color:var(--bg);
+  font:16px/1.55 Inter,Roboto,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background-image:linear-gradient(rgba(168,140,140,.13) 1px,transparent 1px),linear-gradient(90deg,rgba(168,140,140,.13) 1px,transparent 1px);
+  background-size:24px 24px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.app{display:flex;flex-direction:column;min-height:100vh}
+nav{display:flex;gap:4px;padding:8px;overflow-x:auto;background:var(--bg);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+nav button{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid transparent;border-radius:8px;background:none;white-space:nowrap;transition:background .2s,border-color .2s}
+nav button .ic{font-family:var(--mono);font-weight:700;color:var(--accent);min-width:1.6em;text-align:center}
+nav button:hover{background:rgba(229,217,217,.5)}
+nav button[aria-selected=true]{background:var(--on);border-color:var(--accent);font-weight:600}
+main{flex:1;padding:20px 16px 48px;max-width:1000px;width:100%;margin:0 auto}
+@media(min-width:900px){
+  .app{flex-direction:row}
+  nav{flex-direction:column;width:230px;height:100vh;padding:24px 12px;border-bottom:0;border-right:1px solid var(--line);overflow:visible}
+  main{padding:32px 40px 64px}
+}
+h1{font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--soft);margin:0 0 20px}
+h2{font-size:1.1rem;margin:28px 0 10px}
+
+.panel{display:none}
+.panel.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.panel.on{animation:none}*{transition:none!important}}
+
+.btn{padding:8px 14px;border:1px solid var(--accent);background:#fff;border-radius:8px;transition:background .15s}
+.btn:hover{background:var(--on)}
+.btn.solid{background:var(--accent);color:var(--ink);font-weight:600}
+.btn.solid:hover{background:#9a7d7d}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+table{border-collapse:collapse;width:100%}
+th{background:var(--accent);color:var(--ink);font-weight:700;padding:10px 6px;border:1px solid var(--line);font-size:.9rem}
+td{border:1px solid var(--line);padding:0;text-align:center}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-weight:600;font-size:.9rem}
+input[type=text],select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:var(--mono)}
+input[readonly]{background:var(--on)}
+input.bad{border-color:var(--err);outline:1px solid var(--err)}
+.err{color:var(--err);font-size:.85rem;min-height:1.2em}
+.hex{text-transform:uppercase}
+
+.bit{width:100%;min-width:44px;height:48px;border:0;background:#fff;font-family:var(--mono);font-weight:700;transition:background .15s}
+.bit:hover{background:rgba(229,217,217,.5)}
+.bit[aria-pressed=true]{background:var(--on);box-shadow:inset 0 0 0 2px var(--accent)}
+.rowlabel{padding:0 10px;font-weight:600;white-space:nowrap}
+.result{min-width:110px;padding:0 10px;font-family:var(--mono);font-weight:700;font-size:1.1rem}
+.result button{border:0;background:none;color:var(--soft);margin-left:6px}
+.binstr{font-family:var(--mono);background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-top:16px;overflow-wrap:anywhere}
+.binstr div+div{margin-top:4px}
+
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:600px){.grid.c2{grid-template-columns:1fr 1fr}.grid.c3{grid-template-columns:repeat(3,1fr)}}
+.conv{display:grid;gap:6px 10px;grid-template-columns:1fr auto;align-items:end;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.conv .name{grid-column:1/-1;font-weight:600}
+.conv .err{grid-column:1/-1}
+@media(min-width:760px){
+  .conv{grid-template-columns:200px 1fr 1fr auto;align-items:center}
+  .conv .name{grid-column:auto}.conv .err{grid-column:2/-1;margin-top:-4px}
+}
+.list{display:grid;gap:10px}
+
+details{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+summary{padding:14px 16px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"＋";color:var(--accent);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details[open] summary{background:var(--on);border-radius:10px 10px 0 0}
+.body{padding:4px 16px 16px;max-width:70ch}
+.formula{font-family:var(--mono);background:#efeeea;border-left:4px solid var(--accent);border-radius:6px;padding:10px 14px;margin:12px 0;overflow-x:auto}
+.body ul{padding-left:20px}
+
+textarea{width:100%;min-height:55vh;padding:16px;border:1px solid var(--line);border-radius:10px;background:#fff;resize:vertical;line-height:1.7}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--soft);font-size:.9rem}
+
+.calc{max-width:420px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.screen{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:right;font-family:var(--mono);min-height:92px;margin-bottom:12px}
+#cExpr{font-size:1.15rem;overflow-wrap:anywhere;min-height:1.7em}
+#cOut{font-size:1.7rem;font-weight:700;overflow-wrap:anywhere}
+#cOut.bad{color:var(--err);font-size:1.1rem}
+.keys{display:grid;gap:8px}
+.keys.sci{grid-template-columns:repeat(5,1fr);margin-bottom:8px}
+.keys.main{grid-template-columns:repeat(4,1fr)}
+.keys button{padding:14px 0;border:1px solid var(--line);border-radius:10px;background:#fff;transition:background .12s,transform .08s}
+.keys button:hover{background:var(--on)}
+.keys button:active{transform:scale(.96)}
+.keys .op{background:var(--on)}
+.keys .eq{background:var(--accent);font-weight:700}
+.keys .sc{font-size:.9rem;color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<nav role="tablist" aria-label="Secties">
+  <button role="tab" data-tab="bits" aria-selected="true"><span class="ic">01</span>Bits &amp; Binair</button>
+  <button role="tab" data-tab="conv" aria-selected="false"><span class="ic">⇄</span>Converter</button>
+  <button role="tab" data-tab="uitleg" aria-selected="false"><span class="ic">i</span>Uitleg</button>
+  <button role="tab" data-tab="notes" aria-selected="false"><span class="ic">✎</span>Notities</button>
+  <button role="tab" data-tab="calc" aria-selected="false"><span class="ic">±</span>Rekenmachine</button>
+</nav>
+
+<main>
+<section class="panel on" id="bits">
+  <h1>Bits &amp; Binair</h1>
+  <p class="lead">Klik op een cel om een bit aan of uit te zetten. De uitkomst telt de waarden van de bits die aan staan op.</p>
+  <div class="scroll"><table id="bitTable"></table></div>
+  <div class="binstr" id="binStr"></div>
+  <p><button class="btn solid" id="resetAll">Reset tabel</button></p>
+</section>
+
+<section class="panel" id="conv">
+  <h1>Talstelsel converter</h1>
+  <p class="lead">Typ een getal, kies het talstelsel en zie direct de andere notaties.</p>
+  <div class="grid c2" style="align-items:start">
+    <div class="field"><label for="uIn">Getal</label><input type="text" id="uIn" autocomplete="off" spellcheck="false"><div class="err" id="uErr"></div></div>
+    <div class="field"><label for="uBase">Invoer is</label>
+      <select id="uBase"><option value="bin">Binair (2)</option><option value="oct">Octaal (8)</option><option value="dec" selected>Decimaal (10)</option><option value="hex">Hexadecimaal (16)</option></select></div>
+  </div>
+  <div class="grid c3" id="uOuts" style="margin-top:12px"></div>
+
+  <h2>De 12 conversies</h2>
+  <div class="list" id="twelve"></div>
+</section>
+
+<section class="panel" id="uitleg">
+  <h1>Uitleg &amp; definities</h1>
+  <p class="lead">Klap een blok open om de theorie te lezen.</p>
+
+  <details open><summary>Inleiding in het hexadecimale talstelsel</summary><div class="body">
+    <p>Het hexadecimale talstelsel is een plaatswaardestelsel met grondtal 16. Dat betekent dat elk cijfer een macht van 16 vertegenwoordigt, in plaats van machten van 10 (decimaal) of machten van 2 (binair).</p>
+    <p>Omdat we in decimaal maar 10 symbolen hebben (0–9), worden in hexadecimaal zes extra symbolen toegevoegd:</p>
+    <div class="formula">A = 10, B = 11, C = 12, D = 13, E = 14, F = 15</div>
+    <p>Een hexadecimaal getal zoals 2F betekent dus:</p>
+    <div class="formula">(2 × 16<sup>1</sup>) + (15 × 16<sup>0</sup>) = 32 + 15 = 47 in decimaal</div>
+  </div></details>
+
+  <details><summary>Waarom gebruiken we hexadecimaal?</summary><div class="body">
+    <ul>
+      <li>Compacte notatie van binair: <span class="formula" style="display:inline;padding:2px 8px;margin:0">1111 1111 (bin) = FF (hex)</span></li>
+      <li>Veel gebruikt in IT: geheugenadressen, MAC-adressen en kleurcodes (<code>#FF0000</code> voor rood in HTML/CSS).</li>
+    </ul>
+  </div></details>
+
+  <details><summary>Inleiding in het octale talstelsel</summary><div class="body">
+    <p>Het octale talstelsel is een plaatswaardestelsel met grondtal 8. Dat betekent dat elk cijfer een macht van 8 vertegenwoordigt. In octaal gebruiken we de cijfers 0, 1, 2, 3, 4, 5, 6 en 7.</p>
+    <p>Wanneer je telt in octaal, ziet dat er zo uit (let op: na 7 komt 10, dat is 8 in decimaal):</p>
+    <div class="formula">0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, …</div>
+    <p>Voorbeeld: octaal getal 25 betekent:</p>
+    <div class="formula">(2 × 8<sup>1</sup>) + (5 × 8<sup>0</sup>) = 16 + 5 = 21 in decimaal</div>
+  </div></details>
+
+  <details><summary>Waarom octaal gebruiken?</summary><div class="body">
+    <ul>
+      <li><b>Kortere notatie van binair:</b> omdat 8 = 2<sup>3</sup>, kan elk octaal cijfer precies worden weergegeven door 3 binaire cijfers (bits).</li>
+      <li>Octaal werd vroeger veel gebruikt in programmeertalen en besturingssystemen (zoals UNIX).</li>
+    </ul>
+    <div class="formula">binair 111 = octaal 7<br>binair 1000 = octaal 10</div>
+  </div></details>
+
+  <details><summary>Samenvatting octaal</summary><div class="body">
+    <p>Grondtal 8, gebruikt cijfers 0–7. Elk octaal cijfer = 3 binaire bits. Handig als compacte schrijfwijze van binaire getallen.</p>
+  </div></details>
+</section>
+
+<section class="panel" id="notes">
+  <h1>Notities</h1>
+  <p class="lead">Wat je typt wordt automatisch bewaard in je browser.</p>
+  <textarea id="noteArea" placeholder="Schrijf hier je aantekeningen…" aria-label="Notities"></textarea>
+  <div class="bar"><span id="noteStatus"></span><button class="btn" id="noteClear">Wis notities</button></div>
+</section>
+
+<section class="panel" id="calc">
+  <h1>Rekenmachine</h1>
+  <p class="lead">Je kunt ook het toetsenbord gebruiken (cijfers, + − * / ( ) % ^, Enter, Backspace, Esc).</p>
+  <div class="calc">
+    <div class="screen"><div id="cExpr"></div><div id="cOut">0</div></div>
+    <div class="keys sci" id="sciKeys"></div>
+    <div class="keys main" id="mainKeys"></div>
+  </div>
+</section>
+</main>
+</div>
+
+<script>
+const tabs = document.querySelectorAll('nav button');
+tabs.forEach(b => b.addEventListener('click', () => {
+  tabs.forEach(t => t.setAttribute('aria-selected', t === b));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === b.dataset.tab));
+}));
+const $ = id => document.getElementById(id);
+
+const ROWS = 3;
+const VALUES = [2048,1024,512,256,128,64,32,16,8,4,2,1];
+const bits = Array.from({length: ROWS}, () => VALUES.map(() => false));
+
+let h = '<tr><th>BITS</th>' + VALUES.map(v => `<th>${v}</th>`).join('') + '<th>UITKOMST</th></tr>';
+for (let r = 0; r < ROWS; r++) {
+  h += `<tr><td class="rowlabel">Rij ${r+1}</td>` +
+    VALUES.map((v, c) => `<td><button class="bit" data-r="${r}" data-c="${c}" aria-pressed="false" aria-label="Rij ${r+1}, waarde ${v}">0</button></td>`).join('') +
+    `<td class="result"><span id="res${r}">0</span><button data-reset="${r}" title="Reset rij ${r+1}" aria-label="Reset rij ${r+1}">↺</button></td></tr>`;
+}
+$('bitTable').innerHTML = h;
+
+function renderBits() {
+  let lines = '';
+  bits.forEach((row, r) => {
+    let sum = 0, str = '';
+    row.forEach((on, c) => {
+      const btn = document.querySelector(`.bit[data-r="${r}"][data-c="${c}"]`);
+      btn.setAttribute('aria-pressed', on);
+      btn.textContent = on ? '1' : '0';
+      if (on) sum += VALUES[c];
+      str += on ? '1' : '0';
+    });
+    $('res' + r).textContent = sum;
+    lines += `<div>Rij ${r+1}: ${str.replace(/^0+(?=.)/, '')}</div>`;
+  });
+  $('binStr').innerHTML = lines;
+}
+$('bitTable').addEventListener('click', e => {
+  const bit = e.target.closest('.bit'), rs = e.target.closest('[data-reset]');
+  if (bit) bits[bit.dataset.r][bit.dataset.c] = !bits[bit.dataset.r][bit.dataset.c];
+  if (rs) bits[rs.dataset.reset].fill(false);
+  renderBits();
+});
+$('resetAll').onclick = () => { bits.forEach(r => r.fill(false)); renderBits(); };
+renderBits();
+
+const BASES = {
+  bin: {n:'Binair',      r:2,  re:/^[01]$/,       ok:'0 en 1'},
+  oct: {n:'Octaal',      r:8,  re:/^[0-7]$/,      ok:'0 t/m 7'},
+  dec: {n:'Decimaal',    r:10, re:/^[0-9]$/,      ok:'0 t/m 9'},
+  hex: {n:'Hexadecimaal',r:16, re:/^[0-9A-F]$/,   ok:'0 t/m 9 en A t/m F'}
+};
+
+function convert(raw, from, to) {
+  const s = raw.replace(/\s/g, '').toUpperCase();
+  if (!s) return {err: 'Vul een waarde in.'};
+  const b = BASES[from];
+  const bad = [...s].find(ch => !b.re.test(ch));
+  if (bad) return {err: `"${bad}" is ongeldig. ${b.n} accepteert alleen ${b.ok}.`};
+  let n = 0n; const r = BigInt(b.r);
+  for (const ch of s) n = n * r + BigInt(parseInt(ch, 16));
+  return {val: n.toString(BASES[to].r).toUpperCase()};
+}
+
+function copyText(text, btn) {
+  const done = () => { const t = btn.textContent; btn.textContent = 'Gekopieerd ✓'; setTimeout(() => btn.textContent = t, 1200); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, () => {});
+  else { const t = document.createElement('textarea'); t.value = text; document.body.append(t); t.select();
+         try { document.execCommand('copy'); done(); } catch (e) {} t.remove(); }
+}
+
+$('uOuts').innerHTML = Object.keys(BASES).map(k =>
+  `<div class="field" data-out="${k}"><label>${BASES[k].n}</label><input type="text" readonly class="hex" aria-label="${BASES[k].n}"></div>`).join('');
+function runUniversal() {
+  const from = $('uBase').value, raw = $('uIn').value;
+  document.querySelectorAll('[data-out]').forEach(box => {
+    const k = box.dataset.out, inp = box.querySelector('input');
+    box.hidden = (k === from);
+    const res = convert(raw, from, k);
+    inp.value = res.val || '';
+  });
+  const chk = convert(raw, from, 'dec');
+  $('uErr').textContent = chk.err || '';
+  $('uIn').classList.toggle('bad', !!chk.err);
+}
+$('uIn').addEventListener('input', runUniversal);
+$('uBase').addEventListener('change', runUniversal);
+document.querySelectorAll('[data-out]').forEach(b => b.hidden = b.dataset.out === 'dec');
+
+const TWELVE = [
+  ['Binair naar Decimaal','bin','dec'], ['Decimaal naar Binair','dec','bin'],
+  ['Hexadecimaal naar Decimaal','hex','dec'], ['Decimaal naar Hexadecimaal','dec','hex'],
+  ['Hexadecimaal naar Binair','hex','bin'], ['Binair naar Hexadecimaal','bin','hex'],
+  ['Octaal naar Decimaal','oct','dec'], ['Decimaal naar Octaal','dec','oct'],
+  ['Octaal naar Binair','oct','bin'], ['Binair naar Octaal','bin','oct'],
+  ['Hexadecimaal naar Octaal','hex','oct'], ['Octaal naar Hexadecimaal','oct','hex']
+];
+$('twelve').innerHTML = TWELVE.map((t, i) => `
+  <div class="conv">
+    <div class="name">${t[0]}</div>
+    <input type="text" class="hex" id="i${i}" placeholder="${BASES[t[1]].n}" autocomplete="off" spellcheck="false" aria-label="${t[0]} – invoer">
+    <input type="text" readonly class="hex" id="o${i}" placeholder="Resultaat" aria-label="${t[0]} – resultaat">
+    <button class="btn" data-copy="${i}">Kopieer</button>
+    <div class="err" id="e${i}"></div>
+  </div>`).join('');
+TWELVE.forEach((t, i) => {
+  $('i' + i).addEventListener('input', () => {
+    const res = convert($('i' + i).value, t[1], t[2]);
+    $('o' + i).value = res.val || '';
+    $('e' + i).textContent = res.err || '';
+    $('i' + i).classList.toggle('bad', !!res.err);
+  });
+});
+$('twelve').addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]');
+  if (b && $('o' + b.dataset.copy).value) copyText($('o' + b.dataset.copy).value, b);
+});
+
+const KEY = 'talstelsels-notities';
+let timer;
+try { $('noteArea').value = localStorage.getItem(KEY) || ''; } catch (e) {}
+$('noteArea').addEventListener('input', () => {
+  $('noteStatus').textContent = 'Bezig met opslaan…';
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    try { localStorage.setItem(KEY, $('noteArea').value); $('noteStatus').textContent = 'Opgeslagen ✓'; }
+    catch (e) { $('noteStatus').textContent = 'Opslaan niet gelukt (opslag geblokkeerd).'; }
+  }, 500);
+});
+$('noteClear').onclick = () => {
+  if (!confirm('Weet je zeker dat je alle notities wilt wissen?')) return;
+  $('noteArea').value = '';
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  $('noteStatus').textContent = 'Notities gewist.';
+};
+
+let expr = '', fresh = false, deg = false;
+
+function calc(str) {
+  const tok = str.replace(/\s/g, '').match(/\d+\.?\d*(?:e[+-]?\d+)?|\.\d+|sin|cos|tan|log|ln|√|π|[-+*/^()%]/gi) || [];
+  if (tok.join('') !== str.replace(/\s/g, '')) throw Error('Ongeldige invoer');
+  let i = 0;
+  const peek = () => tok[i], eat = () => tok[i++];
+  const trig = fn => x => fn(deg ? x * Math.PI / 180 : x);
+  const F = {sin: trig(Math.sin), cos: trig(Math.cos), tan: trig(Math.tan),
+             log: Math.log10, ln: Math.log, '√': Math.sqrt};
+
+  function parseExpr() {
+    let v = parseTerm();
+    while (peek() === '+' || peek() === '-') v = eat() === '+' ? v + parseTerm() : v - parseTerm();
+    return v;
+  }
+  function parseTerm() {
+    let v = parseUnary();
+    while (peek() === '*' || peek() === '/') {
+      if (eat() === '*') v *= parseUnary();
+      else { const d = parseUnary(); if (d === 0) throw Error('Delen door nul'); v /= d; }
+    }
+    return v;
+  }
+  function parseUnary() {
+    if (peek() === '-') { eat(); return -parseUnary(); }
+    if (peek() === '+') { eat(); return parseUnary(); }
+    return parsePower();
+  }
+  function parsePower() {
+    const base = parsePostfix();
+    if (peek() === '^') { eat(); return Math.pow(base, parseUnary()); }
+    return base;
+  }
+  function parsePostfix() {
+    let v = parsePrimary();
+    while (peek() === '%') { eat(); v /= 100; }
+    return v;
+  }
+  function parsePrimary() {
+    const t = eat();
+    if (t === undefined) throw Error('Ongeldige invoer');
+    if (t === 'π') return Math.PI;
+    if (t === '(') { const v = parseExpr(); if (eat() !== ')') throw Error('Haakje ontbreekt'); return v; }
+    if (F[t.toLowerCase()]) {
+      const f = F[t.toLowerCase()];
+      return f(peek() === '(' ? parsePrimary() : parsePostfix());
+    }
+    if (/^[\d.]/.test(t)) return parseFloat(t);
+    throw Error('Ongeldige invoer');
+  }
+  const out = parseExpr();
+  if (i < tok.length) throw Error('Ongeldige invoer');
+  if (!isFinite(out)) throw Error('Ongeldig resultaat');
+  return Math.abs(out) < 1e-12 ? 0 : +out.toPrecision(12);
+}
+
+const show = s => s.replace(/\*/g, '×').replace(/\//g, '÷').replace(/-/g, '−');
+function renderCalc(final) {
+  $('cExpr').textContent = show(expr);
+  const o = $('cOut'); o.classList.remove('bad');
+  if (!expr) { o.textContent = '0'; return; }
+  try { o.textContent = (final ? '= ' : '') + calc(expr); }
+  catch (e) { if (final) { o.textContent = e.message; o.classList.add('bad'); } else o.textContent = ''; }
+}
+function press(t) {
+  if (t === 'AC') expr = '';
+  else if (t === 'C') expr = expr.replace(/(sin\(|cos\(|tan\(|log\(|ln\(|√\(|.)$/, '');
+  else if (t === '=') {
+    try { expr = String(calc(expr)); fresh = true; renderCalc(false); $('cOut').textContent = expr; return; }
+    catch (e) { renderCalc(true); return; }
+  } else {
+    if (fresh && !/^[-+*/^%]$/.test(t)) expr = '';
+    fresh = false; expr += t;
+  }
+  renderCalc(false);
+}
+
+const SCI = [['sin','sin(','sc'],['cos','cos(','sc'],['tan','tan(','sc'],['log','log(','sc'],['ln','ln(','sc'],
+             ['√','√(','sc'],['x^y','^','sc'],['π','π','sc'],['(','(','sc'],[')',')','sc']];
+const MAIN = [['AC','AC','op'],['C','C','op'],['%','%','op'],['÷','/','op'],
+              ['7'],['8'],['9'],['×','*','op'],['4'],['5'],['6'],['−','-','op'],
+              ['1'],['2'],['3'],['+','+','op'],['0'],['.'],['Rad','DEG','sc'],['=','=','eq']];
+const mk = list => list.map(k => `<button class="${k[2] || ''}" data-k="${k[1] || k[0]}">${k[0]}</button>`).join('');
+$('sciKeys').innerHTML = mk(SCI); $('mainKeys').innerHTML = mk(MAIN);
+document.querySelector('#calc .calc').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.k === 'DEG') { deg = !deg; b.textContent = deg ? 'Deg' : 'Rad'; renderCalc(false); }
+  else press(b.dataset.k);
+});
+
+document.addEventListener('keydown', e => {
+  if (!$('calc').classList.contains('on') || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.ctrlKey || e.metaKey) return;
+  if (/^[0-9.+\-*/()%^]$/.test(e.key)) { press(e.key); e.preventDefault(); }
+  else if (e.key === 'Enter' || e.key === '=') { press('='); e.preventDefault(); }
+  else if (e.key === 'Backspace') press('C');
+  else if (e.key === 'Escape') press('AC');
+});
+</script>
+</body>
+</html>
